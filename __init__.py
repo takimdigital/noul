@@ -1,0 +1,14 @@
+"""noul — local abstention gate. Public API: decide, doctor, load_pack, run_control."""
+from .engine import decide, doctor, ENGINES, __version__
+from .pack import load_pack, list_packs, show_pack, run_control
+
+__all__ = [
+    "__version__",
+    "decide",
+    "doctor",
+    "ENGINES",
+    "load_pack",
+    "list_packs",
+    "show_pack",
+    "run_control",
+]

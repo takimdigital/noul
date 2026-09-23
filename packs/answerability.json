@@ -1,0 +1,37 @@
+{
+  "name": "answerability",
+  "version": "0.1.0",
+  "description": "Does the retrieved context actually contain the answer to this question? The abstention gate for RAG.",
+  "questions": {
+    "answerable": {
+      "type": "noul",
+      "instructions": "Is the specific answer to this question directly stated in the context above? Answer YES if the exact answer is present, NO if it requires guessing or outside knowledge.",
+      "label_true": "ANSWERABLE",
+      "label_false": "NOT ANSWERABLE"
+    }
+  },
+  "eval": {
+    "engine": "kev",
+    "n": 42,
+    "accuracy": 1.0,
+    "wilson_ci_95": [0.916, 1.0],
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "avg_latency_ms": 114.7,
+    "date": "2026-09-23",
+    "note": "Balanced 21/21. All 42 correct. Measurement taken on this box (Kev-0.8B, CUDA, RTX 3070). Single-annotator ground truth; kappa INFERRED."
+  },
+  "controls": [
+    {
+      "name": "answerable-vs-unanswerable",
+      "description": "FEAS D5: answerable (noul ~0.93) vs unanswerable (noul ~0.19). MEASURED 2026-09-23: gap=0.74 (gap_min=0.50). PASS.",
+      "questionable_doc": "The client capped the project budget at $12,000 and asked for weekly status reports every Monday.",
+      "vague_question": "What specific dollar amount did the client cap the project budget at?",
+      "contrast_question": "What color was the CEO laptop?",
+      "expected_vague_noul": 0.93,
+      "expected_contrast_noul": 0.19,
+      "gap_min": 0.5
+    }
+  ]
+}
