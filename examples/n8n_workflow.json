@@ -1,0 +1,90 @@
+{
+  "name": "noul-rag-gate",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "noul-gate",
+        "responseMode": "responseNode"
+      },
+      "name": "webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:8009/v1/systemone",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"state\": \"{{ $json.context }}\",\n  \"model\": \"kev-latest\",\n  \"questions\": {\n    \"answerable\": {\n      \"type\": \"noul\",\n      \"instructions\": \"Is the specific answer to this question directly stated in the context above? Answer YES if the exact answer is present, NO if it requires guessing or outside knowledge. Question: {{ $json.question }}\"\n    }\n  }\n}"
+      },
+      "name": "noul_gate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.answers.answerable.noul }}",
+              "operation": "larger",
+              "value2": "0.5"
+            }
+          ]
+        }
+      },
+      "name": "is_answerable?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"answerable\": true, \"noul\": $json.answers.answerable.noul, \"question\": $json.question, \"action\": \"send_to_expensive_model\" } }}"
+      },
+      "name": "answerable_yes",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [660, 220]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"answerable\": false, \"noul\": $json.answers.answerable.noul, \"question\": $json.question, \"action\": \"abstain_or_cheap_model\", \"abstain\": \"I don't know — the docs don't have the answer.\" } }}"
+      },
+      "name": "answerable_no",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [660, 380]
+    }
+  ],
+  "connections": {
+    "webhook": {
+      "main": [
+        [ { "node": "noul_gate", "type": "main", "index": 0 } ]
+      ]
+    },
+    "noul_gate": {
+      "main": [
+        [ { "node": "is_answerable?", "type": "main", "index": 0 } ]
+      ]
+    },
+    "is_answerable?": {
+      "main": [
+        [ { "node": "answerable_yes", "type": "main", "index": 0 } ],
+        [ { "node": "answerable_no", "type": "main", "index": 0 } ]
+      ]
+    }
+  }
+}
