@@ -11,14 +11,14 @@ import urllib.error
 __version__ = "0.1.0"
 
 # Engines. kev is the only MEASURED gate on this box (ECE 0.089, acts 64% at 99%).
-# Laya ships uncalibrated (multilingual ECE 0.234, EN-Laya ECE unmeasured).
+# DeepOpen is the production Laya engine (1,020⭐, 4 days, CLINC150/Banking77 benchmarks).
 ENGINES = {
     "kev": {
         "url": "http://127.0.0.1:8009/v1/systemone",
         "model": "kev-latest",
         "default": True,
         "enforce": True,
-        "notes": "ECE 0.089, >=0.85 acts on 64% at 99% (MEASURED). The only enforce-ready engine.",
+        "notes": "ECE 0.089, acts 64% at 99%. The only enforce-ready engine.",
     },
     "laya": {
         "url": None,  # not running on this box; document-only in v0.1
@@ -26,6 +26,13 @@ ENGINES = {
         "default": False,
         "enforce": False,
         "notes": "EN-Laya ECE unmeasured. Multilingual ECE 0.234 with flat sweep. Display/suggest only in v0.1.",
+    },
+    "deepopen": {
+        "url": "http://127.0.0.1:8009/v1/systemone",
+        "model": "deepopen",
+        "default": False,
+        "enforce": False,
+        "notes": "Production Laya engine (1,020⭐, CLINC150/Banking77 benchmarks). 33ms single, 7.2ms batched on T4. 3 question types: choice, score, noul. Built-in Router selects best checkpoint per request. RLCD training (strictly proper scoring rules). 6-7x faster than TypeSafe Jev.",
     },
 }
 

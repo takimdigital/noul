@@ -7,7 +7,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from noul import decide, doctor, ENGINES, load_pack, list_packs, show_pack, run_control, __version__
+from noul import decide, doctor, ENGINES, load_pack, list_packs, show_pack, run_control, batch_decide, ordinal_tier, __version__
 
 
 def cmd_check(args):
@@ -105,6 +105,31 @@ def cmd_mcp(args):
     print(print_config(args.host))
 
 
+def cmd_batch(args):
+    from noul.batch import load_batch_input, save_batch_results
+    items = load_batch_input(args.input)
+    doc = ""
+    if args.doc:
+        doc = args.doc
+    elif args.file:
+        with open(args.file, encoding="utf-8") as f:
+            doc = f.read()
+    results = batch_decide(items, doc=doc, pack=args.pack, engine=args.engine, ordinal=args.ordinal)
+    if args.json:
+        print(json.dumps(results, indent=2))
+    else:
+        for r in results:
+            if "error" in r:
+                print(f"  ERROR: {r['error']}")
+            else:
+                tier = f" [{r['tier']}]" if args.ordinal else ""
+                print(f"  {r['verdict']:<16} noul={r['noul']:.3f}{tier}  {r['latency_ms']:.1f}ms  {r['question'][:60]}")
+    if args.output:
+        save_batch_results(results, args.output)
+        print(f"  → saved {len(results)} results to {args.output}")
+    return 0
+
+
 def main():
     p = argparse.ArgumentParser(prog="noul", description="noul — the local abstention gate")
     p.add_argument("--version", action="version", version=f"noul {__version__}")
@@ -144,6 +169,17 @@ def main():
     c_mcp = sub.add_parser("mcp", help="Print MCP config block")
     c_mcp.add_argument("--host", default="lmstudio", choices=["lmstudio", "vscode", "claude", "openwebui"])
     c_mcp.set_defaults(func=cmd_mcp)
+
+    c_batch = sub.add_parser("batch", help="Batch check multiple questions against a doc")
+    c_batch.add_argument("--input", required=True, help="Input file: .csv, .tsv, or .jsonl with 'question' column(s)")
+    c_batch.add_argument("--doc", default="", help="Shared context text (or use --file)")
+    c_batch.add_argument("--file", help="Read shared context from file")
+    c_batch.add_argument("--pack", default="answerability")
+    c_batch.add_argument("--engine", default="kev")
+    c_batch.add_argument("--ordinal", action="store_true", help="Add ordinal tier: definite_yes / maybe / definite_no")
+    c_batch.add_argument("--output", help="Save results as JSONL")
+    c_batch.add_argument("--json", action="store_true", help="Output as JSON array")
+    c_batch.set_defaults(func=cmd_batch)
 
     args = p.parse_args()
     if not args.cmd:

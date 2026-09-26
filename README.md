@@ -92,6 +92,57 @@ Paste the printed JSON into `~/.lmstudio/mcp.json`, then ask your agent: *"shoul
 
 ---
 
+## Usage with real OSS tools
+
+### Ollama + noul (generate, then gate)
+
+Your local stack: Ollama generates answers, noul decides whether your docs even support a question. They coexist on 8 GB VRAM (Kev-0.8B ~1.7 GB + a 7B ~5 GB).
+
+```python
+# gate_before_generate.py
+import subprocess, json, ollama
+
+def safe_answer(docs: str, question: str, model="llama3.1:8b") -> str:
+    # Gate first — 90ms, aborts hallucination
+    r = subprocess.run(["noul", "check", "--doc", docs, "--ask", question, "--json"],
+                       capture_output=True, text=True)
+    verdict = json.loads(r.stdout)
+    if verdict["verdict"] == "NOT_ANSWERABLE":
+        return "I can't find that in the provided documents."
+
+    # Only generate if docs support it
+    resp = ollama.chat(model=model, messages=[{"role": "user", "content": f"Context: {docs}\nQuestion: {question}"}])
+    return resp["message"]["content"]
+```
+
+### Open WebUI pipeline hook
+
+Install the MCP server (`noul mcp --print-config openwebui`), then call `answerable` from any Open WebUI pipeline script before generation.
+
+### n8n workflow: batch slop detector
+
+```json
+{
+  "name": "noul-gate-batch",
+  "nodes": {
+    "Read CSV": { "type": "n8n-nodes-base.readBinaryFile" },
+    "Run noul batch": { "type": "n8n-nodes-base.function", "fn": "noul batch --input {{ $json.csv }}" },
+    "Filter": { "type": "n8n-nodes-base.if", "conditions": { "verdict": "ANSWERABLE" } }
+  }
+}
+```
+
+```bash
+# Process 586 FAQ questions against your docs — the Jev/SEO use case, locally
+noul batch --input faq_questions.csv --doc knowledge_base.md --format csv --output results.csv --ordinal
+```
+
+### System 1 agent integration
+
+Frameworks like [ThinkFlowLab/system1-agents](https://github.com/ThinkFlowLab/system1-agents) run browser, computer, and desktop tasks on `jev`/`laya` decision models. noul gates every action: before the agent clicks, types, or generates, `answerable(state, question)` confirms the retrieved context supports it.
+
+---
+
 ## How it works
 
 ```
@@ -158,6 +209,7 @@ Works with **LM Studio**, **VS Code**, **Claude Desktop**, **Open WebUI** — an
 |---|---|
 | `noul check --doc TEXT --ask QUESTION` | Run one answerability check |
 | `noul check --file FILE --ask QUESTION` | Read context from file |
+| `noul batch --input FILE [--doc TEXT] [--file FILE]` | Batch check multiple questions against a doc |
 | `noul doctor` | Engine status (latency, enforce readiness) |
 | `noul pack list` | List installed packs |
 | `noul pack show NAME` | Show pack contents |
@@ -176,8 +228,9 @@ Works with **LM Studio**, **VS Code**, **Claude Desktop**, **Open WebUI** — an
 | **Kev-0.8B** (default) | 0.8B | 512–8k | 90–135 ms | **0.089** | ✅ Yes |
 | Laya (EN) | 421M | 1024 | 26 ms | unmeasured | ⚠️ Display only |
 | Laya (multi) | 322M | 1024–8k | 35 ms | 0.234 | ❌ No |
+| **DeepOpen** (Laya production) | ~0.8B | 1024–8k | 33 ms (7.2 ms batched) | unmeasured | ⚠️ Display only |
 
-Kev is the only MEASURED gate on this box (ECE 0.089, acts 64% at 99%). Laya's confidence is not a gate.
+Kev is the only MEASURED gate on this box (ECE 0.089, acts 64% at 99%). Laya's confidence is not a gate. DeepOpen is the production Laya engine (1,020⭐, CLINC150/Banking77 benchmarks) with 3 checkpoints + Router, RLCD training.
 
 ---
 
